@@ -20,7 +20,16 @@ if (!firebaseConfig.projectId) {
     firebaseConfig.storageBucket = "indiios-v-1-1.firebasestorage.app";
 }
 
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
+import { signInAnonymously } from 'firebase/auth';
+signInAnonymously(auth).catch(console.error);
+export const functions = getFunctions(app);
+
+if (import.meta.env.DEV) {
+    // connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+}

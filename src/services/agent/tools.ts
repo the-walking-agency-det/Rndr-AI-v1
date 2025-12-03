@@ -1,7 +1,62 @@
 import { useStore } from '@/core/store';
-import { Image } from '@/services/image/ImageService';
+import { ImageGeneration } from '@/services/image/ImageGenerationService';
+import { Editing } from '@/services/image/EditingService';
+import { VideoGeneration } from '@/services/image/VideoGenerationService'; // Added for completeness
+import { memoryService } from '@/services/agent/MemoryService';
+import { AI } from '@/services/ai/AIService';
+import { PUBLICIST_TOOLS } from '@/modules/publicist/tools';
 
 export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
+    save_memory: async (args: { content: string, type?: 'fact' | 'summary' | 'rule' }) => {
+        try {
+            const { currentProjectId } = useStore.getState();
+            await memoryService.saveMemory(currentProjectId, args.content, args.type || 'fact');
+            return `Memory saved: "${args.content}"`;
+        } catch (e: any) {
+            return `Failed to save memory: ${e.message}`;
+        }
+    },
+    recall_memories: async (args: { query: string }) => {
+        try {
+            const { currentProjectId } = useStore.getState();
+            const memories = await memoryService.retrieveRelevantMemories(currentProjectId, args.query);
+            return memories.length > 0 ? `Relevant Memories:\n- ${memories.join('\n- ')}` : "No relevant memories found.";
+        } catch (e: any) {
+            return `Failed to recall memories: ${e.message}`;
+        }
+    },
+    verify_output: async (args: { goal: string, content: string }) => {
+        try {
+            const prompt = `
+            CRITIQUE REQUEST:
+            Goal: "${args.goal}"
+            Content to Verify: "${args.content}"
+            
+            Task: Rate this content on a scale of 1-10 based on how well it meets the goal. 
+            If score < 7, provide specific improvements.
+            Output JSON: { "score": number, "reason": "string", "pass": boolean }
+            `;
+
+            const res = await AI.generateContent({
+                model: 'gemini-2.0-flash-exp',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: { responseMimeType: 'application/json' }
+            });
+
+            return `Verification Result: ${res.text()}`;
+        } catch (e: any) {
+            return `Verification failed: ${e.message}`;
+        }
+    },
+    request_approval: async (args: { content: string, type?: string }) => {
+        // This tool pauses execution and waits for user input.
+        // In a real async agent system, this would suspend the workflow.
+        // Here, we'll simulate a request by showing a toast or modal and returning a pending status.
+        // Ideally, we'd update the store to show a modal.
+
+        // For now, we'll just log it and return a message that tells the agent to wait.
+        return `[APPROVAL REQUESTED] Content: "${args.content}". Please wait for user confirmation. (Note: UI integration pending)`;
+    },
     set_mode: async (args) => {
         // In a real implementation, this would switch the module or UI state
         return `Switched to ${args.mode} mode (Simulation).`;
@@ -13,7 +68,7 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
         try {
             const { studioControls, addToHistory, currentProjectId } = useStore.getState();
 
-            const results = await Image.generateImages({
+            const results = await ImageGeneration.generateImages({
                 prompt: args.prompt || "A creative scene",
                 count: args.count || 1,
                 resolution: args.resolution || studioControls.resolution,
@@ -36,8 +91,11 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
                 return `Successfully generated ${results.length} images. They are now in the Gallery.`;
             }
             return "Generation completed but no images were returned.";
-        } catch (e: any) {
-            return `Image generation failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Image generation failed: ${e.message}`;
+            }
+            return `Image generation failed: An unknown error occurred.`;
         }
     },
     read_history: async () => {
@@ -75,7 +133,7 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
                 return "Could not process image data from uploads.";
             }
 
-            const results = await Image.batchEdit({
+            const results = await Editing.batchEdit({
                 images: imageDataList,
                 prompt: args.prompt,
                 onProgress: (current, total) => {
@@ -103,8 +161,11 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
             }
             return "Batch edit completed but no images were returned.";
 
-        } catch (e: any) {
-            return `Batch edit failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Batch edit failed: ${e.message}`;
+            }
+            return `Batch edit failed: An unknown error occurred.`;
         }
     },
     batch_edit_videos: async (args: { prompt: string, videoIndices?: number[] }) => {
@@ -139,7 +200,7 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
                 return "Could not process video data from uploads. Ensure they are valid data URIs.";
             }
 
-            const results = await Image.batchEditVideo({
+            const results = await Editing.batchEditVideo({
                 videos: videoDataList,
                 prompt: args.prompt,
                 onProgress: (current, total) => {
@@ -167,17 +228,23 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
             }
             return "Batch video processing completed but no videos were returned.";
 
-        } catch (e: any) {
-            return `Batch video processing failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Batch video processing failed: ${e.message}`;
+            }
+            return `Batch video processing failed: An unknown error occurred.`;
         }
     },
     create_project: async (args: { name: string, type: 'creative' | 'music' | 'marketing' | 'legal' }) => {
         try {
-            const { createNewProject } = useStore.getState();
-            await createNewProject(args.name, args.type || 'creative');
+            const { createNewProject, currentOrganizationId } = useStore.getState();
+            await createNewProject(args.name, args.type || 'creative', currentOrganizationId);
             return `Successfully created project "${args.name}" (${args.type}) and switched to it.`;
-        } catch (e: any) {
-            return `Failed to create project: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Failed to create project: ${e.message}`;
+            }
+            return `Failed to create project: An unknown error occurred.`;
         }
     },
     list_projects: async () => {
@@ -223,8 +290,11 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
 
             const result = await runAgenticWorkflow(args.query, userProfile, null, onUpdate, onDocStatus);
             return `RAG Search Result: ${result.asset.content}`;
-        } catch (e: any) {
-            return `Knowledge search failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Knowledge search failed: ${e.message}`;
+            }
+            return `Knowledge search failed: An unknown error occurred.`;
         }
     },
     delegate_task: async (args: { agent_id: string, task: string, context?: any }) => {
@@ -239,13 +309,16 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
 
             const response = await agent.execute(args.task, args.context);
             return `[${agent.name}]: ${response.text}`;
-        } catch (e: any) {
-            return `Delegation failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Delegation failed: ${e.message}`;
+            }
+            return `Delegation failed: An unknown error occurred.`;
         }
     },
     generate_video: async (args: { prompt: string, image?: string, duration?: number }) => {
         try {
-            const { Video } = await import('../../services/video/VideoService');
+            const { VideoGeneration } = await import('../../services/image/VideoGenerationService');
 
             let imageInput;
             if (args.image) {
@@ -255,13 +328,14 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
                 }
             }
 
-            const uri = await Video.generateVideo({
+            const results = await VideoGeneration.generateVideo({
                 prompt: args.prompt,
-                image: imageInput,
-                durationSeconds: args.duration
+                firstFrame: args.image, // Assuming args.image is the first frame
+                // durationSeconds: args.duration // VideoGenerationService doesn't support durationSeconds directly yet, it supports totalDuration for long form
             });
 
-            if (uri) {
+            if (results.length > 0) {
+                const uri = results[0].url;
                 const { addToHistory, currentProjectId } = useStore.getState();
                 // We might want to fetch the blob here to store it properly or just store the URI
                 // For now, let's assume URI is sufficient or we fetch it
@@ -277,13 +351,16 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
                 return `Video generated successfully: ${uri}`;
             }
             return "Video generation failed (no URI returned).";
-        } catch (e: any) {
-            return `Video generation failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Video generation failed: ${e.message}`;
+            }
+            return `Video generation failed: An unknown error occurred.`;
         }
     },
     generate_motion_brush: async (args: { image: string, mask: string, prompt?: string }) => {
         try {
-            const { Video } = await import('../../services/video/VideoService');
+            const { Video } = await import('../../services/video/VideoService'); // Motion brush is in VideoService
 
             const imgMatch = args.image.match(/^data:(.+);base64,(.+)$/);
             const maskMatch = args.mask.match(/^data:(.+);base64,(.+)$/);
@@ -295,6 +372,7 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
             const image = { mimeType: imgMatch[1], data: imgMatch[2] };
             const mask = { mimeType: maskMatch[1], data: maskMatch[2] };
 
+            // Assuming Editing service has a generateMotionBrush method
             const uri = await Video.generateMotionBrush(image, mask);
 
             if (uri) {
@@ -310,8 +388,11 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
                 return `Motion Brush video generated successfully: ${uri}`;
             }
             return "Motion Brush generation failed.";
-        } catch (e: any) {
-            return `Motion Brush failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Motion Brush failed: ${e.message}`;
+            }
+            return `Motion Brush failed: An unknown error occurred.`;
         }
     },
     analyze_audio: async (args: { audio: string }) => {
@@ -338,10 +419,70 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
 
             const analysis = await engine.analyze(arrayBuffer);
             return `Audio Analysis Result: ${JSON.stringify(analysis, null, 2)}`;
-        } catch (e: any) {
-            return `Audio analysis failed: ${e.message}`;
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                return `Audio analysis failed: ${e.message}`;
+            }
+            return `Audio analysis failed: An unknown error occurred.`;
         }
-    }
+    },
+    analyze_contract: async (args: { file_data: string, mime_type: string }) => {
+        try {
+            const { functions } = await import('@/services/firebase');
+            const { httpsCallable } = await import('firebase/functions');
+            const analyzeContract = httpsCallable(functions, 'analyzeContract');
+            const result = await analyzeContract({ fileData: args.file_data, mimeType: args.mime_type });
+            const data = result.data as any;
+            return `Contract Analysis:\nScore: ${data.score}\nSummary: ${data.summary}\nRisks: ${data.risks.join('\n- ')}`;
+        } catch (e: any) {
+            return `Contract analysis failed: ${e.message}`;
+        }
+    },
+    generate_social_post: async (args: { platform: string, topic: string, tone?: string }) => {
+        try {
+            const { AI } = await import('@/services/ai/AIService');
+            const prompt = `Generate a ${args.tone || 'professional'} social media post for ${args.platform} about ${args.topic}. Include hashtags.`;
+            const result = await AI.generateContent({
+                model: 'gemini-2.0-flash-exp',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+            const text = result.text();
+
+            const { addToHistory, currentProjectId } = useStore.getState();
+            addToHistory({
+                id: crypto.randomUUID(),
+                url: '', // Text content doesn't have a URL usually, or we could save to a blob
+                prompt: args.topic,
+                type: 'text',
+                timestamp: Date.now(),
+                projectId: currentProjectId,
+                meta: text
+            });
+
+            return `Generated Post for ${args.platform}:\n${text}`;
+        } catch (e: any) {
+            return `Social post generation failed: ${e.message}`;
+        }
+    },
+    generate_music: async (args: { prompt: string, duration?: number }) => {
+        try {
+            const { addToHistory, currentProjectId } = useStore.getState();
+            // Placeholder for actual music generation
+            const id = crypto.randomUUID();
+            addToHistory({
+                id,
+                url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Placeholder MP3
+                prompt: args.prompt,
+                type: 'music',
+                timestamp: Date.now(),
+                projectId: currentProjectId
+            });
+            return `Music generated for "${args.prompt}". (Placeholder audio used)`;
+        } catch (e: any) {
+            return `Music generation failed: ${e.message}`;
+        }
+    },
+    ...PUBLICIST_TOOLS
 };
 
 export const BASE_TOOLS = `
@@ -361,4 +502,14 @@ AVAILABLE TOOLS:
 12. generate_video(prompt: string, image?: string, duration?: number) - Generate a video from text or image.
 13. generate_motion_brush(image: string, mask: string, prompt?: string) - Animate a specific area of an image.
 14. analyze_audio(audio: string) - Analyze an audio file (base64) for BPM, key, and energy.
+15. analyze_contract(file_data: string, mime_type: string) - Analyze a legal contract (base64).
+15. analyze_contract(file_data: string, mime_type: string) - Analyze a legal contract (base66).
+16. generate_social_post(platform: string, topic: string, tone?: string) - Generate a social media post.
+17. generate_music(prompt: string, duration?: number) - Generate a music track.
+18. save_memory(content: string, type?: 'fact' | 'summary' | 'rule') - Save a fact or rule to long-term memory.
+19. recall_memories(query: string) - Search long-term memory for relevant info.
+20. verify_output(goal: string, content: string) - Critique generated content against a goal.
+21. request_approval(content: string) - Pause and ask the user for approval.
+22. write_press_release(headline: string, company_name: string, key_points: string[], contact_info: string) - Write a press release.
+23. generate_crisis_response(issue: string, sentiment: string, platform: string) - Generate a crisis response.
 `;
