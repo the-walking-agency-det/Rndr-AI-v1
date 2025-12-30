@@ -26,6 +26,11 @@ const getInngestClient = () => {
 
 /**
  * Trigger Video Generation Job
+ *
+ * This callable function acts as the bridge between the Client App (Electron)
+ * and the Asynchronous Worker Queue (Inngest).
+ *
+ * Security: protected by Firebase Auth (onCall).
  */
 export const triggerVideoJob = functions
     .runWith({
@@ -110,6 +115,9 @@ const updateVideoJobStatus = async (jobId: string, status: string, metadata: any
 
 /**
  * Inngest API Endpoint
+ *
+ * This is the entry point for Inngest Cloud to call back into our functions
+ * to execute steps.
  */
 export const inngestApi = functions
     .runWith({
@@ -181,6 +189,9 @@ export const inngestApi = functions
                     // Parse response to get video URL or bytes
                     // Typically Veo returns a GCS URI or base64
                     // For this implementation we assume GCS URI or similar
+
+                    // This is a simplified handler assuming standard Vertex prediction response
+                    // In reality, we might need to handle LRO or specific parsing
 
                     return {
                         videoUrl: "gs://mock-bucket/generated-video.mp4", // Placeholder if real call fails logic

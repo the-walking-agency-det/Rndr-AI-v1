@@ -16,6 +16,7 @@ import { MapsTools } from './tools/MapsTools';
 import { BrandTools } from './tools/BrandTools';
 import { MarketingTools } from './tools/MarketingTools';
 import { RoadTools } from './tools/RoadTools';
+<<<<<<< HEAD
 import { check_api_status, scan_content, rotate_credentials, verify_zero_touch_prod, check_core_dump_policy, audit_workload_isolation } from './tools/SecurityTools';
 
 // Wrap Mock Security Tools into an object for consistency and to add missing mocks
@@ -31,6 +32,10 @@ const SecurityTools = {
     scan_for_vulnerabilities: async (args: { component?: string, scope?: string }) => JSON.stringify({ status: "scanned", target: args.component || args.scope, vulnerabilities: [] }),
     generate_security_report: async (args: { scope: string }) => JSON.stringify({ status: "generated", scope: args.scope, url: "https://secure-report.mock" })
 };
+=======
+import { SecurityTools } from './tools/SecurityTools';
+import { DevOpsTools } from './tools/DevOpsTools';
+>>>>>>> 8b85b8280bb3b03826eca0f42ad90d816000254c
 
 export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
     ...CoreTools,
@@ -48,7 +53,16 @@ export const TOOL_REGISTRY: Record<string, (args: any) => Promise<string>> = {
     ...BrandTools,
     ...MarketingTools,
     ...RoadTools,
+<<<<<<< HEAD
     ...SecurityTools,
+=======
+    ...SecurityTools
+    ...BrandTools,
+    ...MarketingTools,
+    ...RoadTools,
+    ...SecurityTools,
+    ...DevOpsTools,
+>>>>>>> 8b85b8280bb3b03826eca0f42ad90d816000254c
     ...PUBLICIST_TOOLS
 };
 
