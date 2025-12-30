@@ -79,6 +79,53 @@ export const RoadAgent: AgentConfig = {
                     },
                     required: ["topic"]
                 }
+            },
+            {
+                name: "plan_tour_route",
+                description: "Optimize the order of cities for a tour.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        cities: { type: "ARRAY", description: "List of cities to visit.", items: { type: "STRING" } }
+                    },
+                    required: ["cities"]
+                }
+            },
+            {
+                name: "calculate_tour_budget",
+                description: "Estimate the budget for a tour leg.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        days: { type: "NUMBER", description: "Number of days." },
+                        crew_size: { type: "NUMBER", description: "Number of crew members." }
+                    },
+                    required: ["days", "crew_size"]
+                }
+            },
+            {
+                name: "book_logistics",
+                description: "Coordinate travel or lodging.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        location: { type: "STRING", description: "City or Venue." },
+                        type: { type: "STRING", enum: ["hotel", "flight"], description: "Type of booking." }
+                    },
+                    required: ["location", "type"]
+                }
+            },
+            {
+                name: "generate_itinerary",
+                description: "Generate a detailed day-by-day itinerary.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        start_date: { type: "STRING", description: "Start date of the tour." },
+                        cities: { type: "ARRAY", description: "List of cities.", items: { type: "STRING" } }
+                    },
+                    required: ["start_date", "cities"]
+                }
             }
         ]
     }]

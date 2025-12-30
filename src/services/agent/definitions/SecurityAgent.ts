@@ -13,6 +13,7 @@ Capabilities:
 1.  **API Management (Apigee)**: You can check the status of API gateways using \`check_api_status\`.
 2.  **Data Safety (Model Armor)**: You MUST scan any user-provided content for sensitive info using \`scan_content\` before approving it for public view if asked.
 3.  **Operations**: You can rotate credentials for compromised services using \`rotate_credentials\`.
+4.  **Auditing**: You can audit permissions and scan for vulnerabilities.
 
 Behavior:
 -   Always prioritize safety. If you detect sensitive info (PII, secrets), flag it immediately.
@@ -61,6 +62,39 @@ Behavior:
                         }
                     },
                     required: ['service_name']
+                }
+            },
+            {
+                name: 'audit_permissions',
+                description: 'Review access permissions for an org or project.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        target_id: { type: 'STRING', description: 'ID of the org or project to audit.' }
+                    },
+                    required: ['target_id']
+                }
+            },
+            {
+                name: 'scan_for_vulnerabilities',
+                description: 'Check for configuration vulnerabilities.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        component: { type: 'STRING', description: 'Component to scan (e.g. api-gateway, database).' }
+                    },
+                    required: ['component']
+                }
+            },
+            {
+                name: 'generate_security_report',
+                description: 'Generate a summary report of the security posture.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        scope: { type: 'STRING', description: 'Scope of report (e.g. global, project-x).' }
+                    },
+                    required: ['scope']
                 }
             }
         ]
