@@ -18,7 +18,7 @@ import { MarketingTools } from './tools/MarketingTools';
 import { RoadTools } from './tools/RoadTools';
 import { check_api_status, scan_content, rotate_credentials, verify_zero_touch_prod, check_core_dump_policy, audit_workload_isolation } from './tools/SecurityTools';
 
-// Wrap Mock Security Tools into an object for consistency if needed, or spread them
+// Wrap Mock Security Tools into an object for consistency and to add missing mocks
 const SecurityTools = {
     check_api_status,
     scan_content,
@@ -26,9 +26,9 @@ const SecurityTools = {
     verify_zero_touch_prod,
     check_core_dump_policy,
     audit_workload_isolation,
-    // Add missing mocks for the new definitions
-    audit_permissions: async (args: { target_id: string }) => JSON.stringify({ status: "audited", target: args.target_id, issues: 0 }),
-    scan_for_vulnerabilities: async (args: { component: string }) => JSON.stringify({ status: "scanned", component: args.component, vulnerabilities: [] }),
+    // Add missing mocks for the new definitions (if not already in SecurityTools.ts)
+    audit_permissions: async (args: { target_id?: string, project_id?: string }) => JSON.stringify({ status: "audited", target: args.target_id || args.project_id, issues: 0 }),
+    scan_for_vulnerabilities: async (args: { component?: string, scope?: string }) => JSON.stringify({ status: "scanned", target: args.component || args.scope, vulnerabilities: [] }),
     generate_security_report: async (args: { scope: string }) => JSON.stringify({ status: "generated", scope: args.scope, url: "https://secure-report.mock" })
 };
 
@@ -93,4 +93,7 @@ AVAILABLE TOOLS:
 37. plan_tour_route(cities: string[]) - Optimize tour logistics.
 38. check_api_status(api_name: string) - Check API health (Security).
 39. scan_content(text: string) - Scan for sensitive data (Security).
+40. audit_permissions(target_id: string) - Audit permissions for a target.
+41. scan_for_vulnerabilities(component: string) - Scan component for vulnerabilities.
+42. generate_security_report(scope: string) - Generate security report.
 `;

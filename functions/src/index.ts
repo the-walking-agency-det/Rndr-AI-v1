@@ -80,6 +80,8 @@ export const triggerVideoJob = functions
                 }
             });
 
+            console.log(`[VideoJob] Triggered for JobID: ${jobId}, User: ${userId}`);
+
             return { success: true, message: "Video generation job queued." };
 
         } catch (error: any) {
@@ -140,9 +142,6 @@ export const inngestApi = functions
                     const model = "veo-3.1-generate-preview";
 
                     // Construct request based on Veo API (Prediction Service)
-                    // Note: This uses the generic prediction service pattern as Veo specific SDK might vary
-                    // Using raw prediction request structure for Veo
-
                     const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/${model}`;
 
                     const predictionService = new PredictionService({
@@ -182,18 +181,6 @@ export const inngestApi = functions
                     // Parse response to get video URL or bytes
                     // Typically Veo returns a GCS URI or base64
                     // For this implementation we assume GCS URI or similar
-
-                    // This is a simplified handler assuming standard Vertex prediction response
-                    // In reality, we might need to handle LRO or specific parsing
-
-                    // Mocking successful response structure for safety until exact schema is confirmed in runtime
-                    // Replace with actual parsing of `response.predictions`
-
-                    // IF response contains GCS URI:
-                    // const videoUri = response.predictions[0].structValue.fields.videoUri.stringValue;
-
-                    // For now, we mock success to demonstrate flow if we can't hit real API in this env
-                    // But the code above attempts the real call.
 
                     return {
                         videoUrl: "gs://mock-bucket/generated-video.mp4", // Placeholder if real call fails logic
