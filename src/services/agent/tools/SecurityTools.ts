@@ -1,4 +1,5 @@
-import { ToolDefinition } from '../types';
+import { AI } from '../../ai/AIService';
+import { AI_MODELS } from '@/core/config/ai-models';
 
 /**
  * MOCKED Security Tools
@@ -111,4 +112,72 @@ export const audit_workload_isolation = async (args: { service_name: string, wor
         isolation_status: 'ENFORCED',
         neighbors: workload_type === 'FOUNDATIONAL' ? [] : ['other-batch-jobs'] // Foundational should have no neighbors
     });
+};
+
+// New AI-Driven Audits
+export const audit_permissions = async (args: { project_id?: string }) => {
+    const prompt = `
+    You are a Security Officer. Perform a Permission Audit ${args.project_id ? `for project ${args.project_id}` : 'for the organization'}.
+
+    Review standard roles: Admin, Editor, Viewer.
+    Identify potential risks (e.g., too many Admins, external guests).
+
+    Generate a report with:
+    1. Current Access Summary (Simulated)
+    2. Risk Level (Low/Med/High)
+    3. Recommendations for Least Privilege Principle
+    `;
+    try {
+        const res = await AI.generateContent({
+            model: AI_MODELS.TEXT.AGENT,
+            contents: { role: 'user', parts: [{ text: prompt }] }
+        });
+        return res.text() || "Failed to audit permissions.";
+    } catch (e) {
+        return "Error auditing permissions.";
+    }
+};
+
+export const scan_for_vulnerabilities = async (args: { scope: string }) => {
+    const prompt = `
+    You are a Security Analyst. Perform a Vulnerability Scan on: ${args.scope}.
+
+    Check for:
+    1. Exposed API Keys
+    2. Weak Passwords
+    3. Unencrypted Data
+    4. Outdated Dependencies
+
+    Generate a Security Findings Report.
+    `;
+    try {
+        const res = await AI.generateContent({
+            model: AI_MODELS.TEXT.AGENT,
+            contents: { role: 'user', parts: [{ text: prompt }] }
+        });
+        return res.text() || "Failed to scan for vulnerabilities.";
+    } catch (e) {
+        return "Error scanning for vulnerabilities.";
+    }
+};
+
+export const generate_security_report = async (args: { scope: string }) => {
+    return JSON.stringify({
+        status: "generated",
+        scope: args.scope,
+        report_url: "https://security-reports.internal/latest",
+        summary: "All systems nominal. No critical vulnerabilities detected."
+    });
+};
+
+export const SecurityTools = {
+    check_api_status,
+    scan_content,
+    rotate_credentials,
+    verify_zero_touch_prod,
+    check_core_dump_policy,
+    audit_workload_isolation,
+    audit_permissions,
+    scan_for_vulnerabilities,
+    generate_security_report
 };

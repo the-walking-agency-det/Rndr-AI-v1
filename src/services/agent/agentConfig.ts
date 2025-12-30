@@ -13,6 +13,13 @@ import { LicensingAgent } from './definitions/LicensingAgent';
 import { BrandAgent } from './definitions/BrandAgent';
 import { ScreenwriterAgent } from '@/agents/screenwriter/config';
 import { ProducerAgent } from '@/agents/producer/config';
+<<<<<<< HEAD
+import { DevOpsAgent } from './definitions/DevOpsAgent';
+import { SecurityAgent } from './definitions/SecurityAgent';
+=======
+import { SecurityAgent } from './definitions/SecurityAgent';
+import { DevOpsAgent } from './definitions/DevOpsAgent';
+>>>>>>> 8b85b8280bb3b03826eca0f42ad90d816000254c
 
 export const AGENT_CONFIGS: AgentConfig[] = [
     MarketingAgent,
@@ -29,6 +36,6 @@ export const AGENT_CONFIGS: AgentConfig[] = [
     PublishingAgent,
     LicensingAgent,
     BrandAgent,
-    // DevOpsAgent, // Internal / Testing only
-    // SecurityAgent // Internal / Testing only
+    DevOpsAgent,
+    SecurityAgent
 ];
