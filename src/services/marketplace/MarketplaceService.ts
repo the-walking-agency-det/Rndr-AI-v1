@@ -89,6 +89,4 @@ export class MarketplaceService {
 
         return purchaseRef.id;
     }
-
-
 }
