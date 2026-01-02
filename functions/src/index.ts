@@ -309,7 +309,8 @@ export const inngestApi = functions
             async ({ event, step }) => {
                 const { jobId, prompts, userId, startImage, options } = event.data;
                 const segmentUrls: string[] = [];
-                const currentStartImage = startImage;
+                // Use let for mutability during daisychaining
+                let currentStartImage = startImage;
 
                 try {
                     // Update main job status
@@ -400,8 +401,14 @@ export const inngestApi = functions
                             }, { merge: true });
                         });
 
-                        // Note: In real daisychaining we would extract frame here.
-                        // Integration with separate frame extraction service would go here.
+                        // Note: In real daisychaining we would extract the last frame of the new segment here.
+                        // However, server-side frame extraction without ffmpeg/canvas in Cloud Functions is non-trivial.
+                        // For V1, we maintain the currentStartImage as is if provided, or accept independent segments.
+                        // Future: Add a separate microservice or cloud run instance with ffmpeg for this step.
+
+                        // If we could extract it:
+                        // const lastFrame = await extractLastFrame(segmentUrl);
+                        // currentStartImage = lastFrame;
                     }
 
                     await step.run("trigger-stitch", async () => {

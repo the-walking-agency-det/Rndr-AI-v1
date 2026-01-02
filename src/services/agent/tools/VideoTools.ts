@@ -258,12 +258,16 @@ export const VideoTools = {
             });
 
             // Use the refactored background-driven service
-            const jobId = await VideoGeneration.generateLongFormVideo({
+            // generateLongFormVideo returns { id: string, url: string, prompt: string }[]
+            const results = await VideoGeneration.generateLongFormVideo({
                 prompt: args.prompt,
                 totalDuration: args.totalDuration,
                 startImage: args.startImage,
                 orgId: useStore.getState().currentOrganizationId
-            } as any); // Cast as any if typing mismatch in options (generateLongFormVideo returns results[] now but I updated it to return a placeholder list)
+            } as any);
+
+            // Extract the main job ID from the first result
+            const jobId = results[0].id;
 
             return `Long-form generation job started. Job ID: ${jobId}. You will see segments appear in your history as they are generated.`;
 

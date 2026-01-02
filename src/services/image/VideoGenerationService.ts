@@ -138,7 +138,7 @@ export class VideoGenerationService {
     /**
      * Subscribes to a video job status.
      */
-    subscribeToJob(jobId: string, callback: (job: any) => void): () => void {
+    subscribeToJob(jobId: string, callback: (job: any) => void, onError?: (error: Error) => void): () => void {
         const jobRef = doc(db, 'videoJobs', jobId);
         return onSnapshot(jobRef, (snapshot) => {
             if (snapshot.exists()) {
@@ -146,6 +146,9 @@ export class VideoGenerationService {
             } else {
                 callback(null);
             }
+        }, (error) => {
+            console.error(`Error subscribing to video job ${jobId}:`, error);
+            if (onError) onError(error);
         });
     }
 
@@ -165,6 +168,8 @@ export class VideoGenerationService {
                         reject(new Error(job.error || 'Video generation failed.'));
                     }
                 }
+            }, (error) => {
+                reject(new Error(`Subscription failed: ${error.message}`));
             });
         });
 
@@ -208,8 +213,7 @@ export class VideoGenerationService {
             const triggerLongFormVideoJob = httpsCallable(functions, 'triggerLongFormVideoJob');
 
             // Construct segment-wise prompts for the background worker
-            // We use 5s as the block duration because Veo generates 5s clips
-            const BLOCK_DURATION = 5;
+            const BLOCK_DURATION = 8;
             const numBlocks = Math.ceil(options.totalDuration / BLOCK_DURATION);
             const prompts = Array.from({ length: numBlocks }, (_, i) =>
                 `${options.prompt} (Part ${i + 1}/${numBlocks})`
@@ -220,12 +224,7 @@ export class VideoGenerationService {
                 prompts,
                 orgId,
                 startImage: options.firstFrame,
-                totalDuration: options.totalDuration,
-                duration: "5s", // Explicitly request 5s segments from Veo
-                aspectRatio: options.aspectRatio,
-                resolution: options.resolution,
-                seed: options.seed,
-                negativePrompt: options.negativePrompt
+                ...options
             });
 
             // Return a placeholder list with the main jobId

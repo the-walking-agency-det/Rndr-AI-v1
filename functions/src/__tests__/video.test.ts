@@ -1,21 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 
+// Hoist mocks using vi.hoisted to avoid "access before initialization" errors
+const { mockSet, mockDoc, mockCollection, mockFirestore, mockFieldValue, mockAuthGetClient, mockAuthGetProjectId } = vi.hoisted(() => {
+    const mockSet = vi.fn();
+    const mockDoc = vi.fn(() => ({ set: mockSet }));
+    const mockCollection = vi.fn(() => ({ doc: mockDoc }));
+    const mockFirestore = vi.fn(() => ({ collection: mockCollection }));
+    const mockFieldValue = { serverTimestamp: vi.fn(() => 'TIMESTAMP') };
+    const mockAuthGetClient = vi.fn();
+    const mockAuthGetProjectId = vi.fn();
+    return { mockSet, mockDoc, mockCollection, mockFirestore, mockFieldValue, mockAuthGetClient, mockAuthGetProjectId };
+});
+
 // Mock Firebase Admin
 vi.mock('firebase-admin', () => ({
     initializeApp: vi.fn(),
-    firestore: vi.fn(() => ({
-        collection: vi.fn(() => ({
-            doc: vi.fn(() => ({
-                set: vi.fn(),
-                get: vi.fn()
-            }))
-        })),
-        FieldValue: {
-            serverTimestamp: vi.fn()
-        }
+    firestore: Object.assign(mockFirestore, { FieldValue: mockFieldValue }),
+    storage: vi.fn(() => ({
+        bucket: () => ({
+            file: () => ({
+                save: vi.fn(),
+                makePublic: vi.fn(),
+                publicUrl: () => 'https://mock-storage-url.com/video.mp4'
+            })
+        })
     })),
-    storage: vi.fn(),
     auth: vi.fn()
 }));
 
@@ -46,6 +56,16 @@ vi.mock('@google-cloud/vertexai', () => ({
     VertexAI: vi.fn()
 }));
 
+// Mock GoogleAuth class using a class-like structure for the mock
+vi.mock('google-auth-library', () => {
+    return {
+        GoogleAuth: class MockGoogleAuth {
+            getClient() { return mockAuthGetClient(); }
+            getProjectId() { return mockAuthGetProjectId(); }
+        }
+    };
+});
+
 describe('Video Backend', () => {
     it('should be testable', () => {
         expect(true).toBe(true);
@@ -56,43 +76,6 @@ describe('Video Backend', () => {
         await import('../index');
         expect(admin.initializeApp).toHaveBeenCalled();
     });
-});
-
-// Mocks
-const mockSet = vi.fn();
-const mockDoc = vi.fn(() => ({ set: mockSet }));
-const mockCollection = vi.fn(() => ({ doc: mockDoc }));
-const mockFirestore = vi.fn(() => ({ collection: mockCollection }));
-const mockFieldValue = { serverTimestamp: vi.fn(() => 'TIMESTAMP') };
-
-const mockAuthGetClient = vi.fn();
-const mockAuthGetProjectId = vi.fn();
-
-// Mock Modules
-vi.mock('firebase-admin', () => ({
-    initializeApp: vi.fn(),
-    firestore: Object.assign(mockFirestore, { FieldValue: mockFieldValue }),
-    storage: vi.fn(() => ({
-        bucket: () => ({
-            file: () => ({
-                save: vi.fn(),
-                makePublic: vi.fn(),
-                publicUrl: () => 'https://mock-storage-url.com/video.mp4'
-            })
-        })
-    }))
-}));
-
-// Mock GoogleAuth class using a class-like structure for the mock
-class MockGoogleAuth {
-    getClient() { return mockAuthGetClient(); }
-    getProjectId() { return mockAuthGetProjectId(); }
-}
-
-vi.mock('google-auth-library', () => {
-    return {
-        GoogleAuth: MockGoogleAuth
-    };
 });
 
 describe('Video Backend Logic', () => {
@@ -115,7 +98,7 @@ describe('Video Backend Logic', () => {
                     bytesBase64Encoded: 'mock-base64-video-data'
                 }]
             })
-        });
+        } as Response);
 
         const jobId = 'test-job-id';
 
