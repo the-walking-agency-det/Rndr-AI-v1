@@ -53,5 +53,5 @@ All relevant test suites passed successfully:
 
 ## Next Steps
 
-- **Production Key**: Ensure `VITE_FIREBASE_APP_CHECK_KEY` is set in production environment.
-- **Monitoring**: Watch Firebase Console for App Check metrics and Vertex AI quota usage.
+- **Production Key**: `VITE_FIREBASE_APP_CHECK_KEY` support is implemented. Ensure this variable is set in the production environment (CI/CD or Hosting). App logs will warn if missing.
+- **Monitoring**: (Manual) Watch Firebase Console for App Check metrics and Vertex AI quota usage to adjust limits as needed.

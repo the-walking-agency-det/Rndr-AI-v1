@@ -63,6 +63,8 @@ if (typeof window !== 'undefined') {
         } catch (e) {
             console.warn('App Check init failed:', e);
         }
+    } else {
+        console.warn('App Check NOT initialized: VITE_FIREBASE_APP_CHECK_KEY is missing in production environment.');
     }
 }
 export { appCheck };
