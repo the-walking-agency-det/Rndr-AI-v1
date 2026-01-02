@@ -40,13 +40,27 @@ const google_auth_library_1 = require("google-auth-library");
 const zod_1 = require("zod");
 // Validation Schema
 exports.VideoJobSchema = zod_1.z.object({
-    jobId: zod_1.z.string().uuid(),
+    jobId: zod_1.z.string().uuid().or(zod_1.z.string().min(1)), // UUID preferred but string allowed for backward compat
     userId: zod_1.z.string(),
     orgId: zod_1.z.string().optional().default("personal"),
-    prompt: zod_1.z.string().min(1),
+    prompt: zod_1.z.string().min(1).max(5000),
     options: zod_1.z.object({
         duration: zod_1.z.enum(["5s", "10s"]).optional().default("5s"),
         aspectRatio: zod_1.z.enum(["16:9", "9:16", "1:1"]).optional().default("16:9"),
+        // Advanced Options restoration
+        durationSeconds: zod_1.z.number().optional(),
+        resolution: zod_1.z.string().optional(),
+        fps: zod_1.z.number().optional(),
+        cameraMovement: zod_1.z.string().optional(),
+        motionStrength: zod_1.z.number().optional(),
+        seed: zod_1.z.number().optional(),
+        negativePrompt: zod_1.z.string().optional(),
+        model: zod_1.z.string().optional(),
+        firstFrame: zod_1.z.string().optional(),
+        lastFrame: zod_1.z.string().optional(),
+        timeOffset: zod_1.z.number().optional(),
+        ingredients: zod_1.z.array(zod_1.z.string()).optional(),
+        shotList: zod_1.z.array(zod_1.z.any()).optional() // Allow shotList as any array for now
     }).optional().default({})
 });
 /**
@@ -73,7 +87,7 @@ async function generateVideoWithVeo(input, updateStatus) {
         instances: [{ prompt }],
         parameters: {
             sampleCount: 1,
-            videoLength: options.duration,
+            videoLength: options.duration || (options.durationSeconds ? `${options.durationSeconds}s` : "5s"),
             aspectRatio: options.aspectRatio
         }
     };
@@ -132,11 +146,6 @@ async function generateVideoWithVeo(input, updateStatus) {
  */
 const generateVideoLogic = async ({ event, step }) => {
     const { jobId } = event.data;
-    // We wrap the entire execution in a step to ensure retries work at this level
-    // and we don't have partial side-effects if we crash in the middle of generateVideoWithVeo
-    // (though generateVideoWithVeo has internal status updates which are side effects).
-    // Actually, Inngest steps should be idempotent.
-    // generateVideoWithVeo performs external API calls.
     return await step.run("generate-veo-video", async () => {
         return await generateVideoWithVeo(event.data, async (status, data) => {
             await admin.firestore().collection("videoJobs").doc(jobId).set(Object.assign({ status, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, data), { merge: true });
