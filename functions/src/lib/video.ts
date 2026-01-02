@@ -4,7 +4,7 @@ import { z } from "zod";
 
 // Validation Schema
 export const VideoJobSchema = z.object({
-    jobId: z.string().uuid().or(z.string().min(1)), // UUID preferred but string allowed for backward compat
+    jobId: z.string().uuid().or(z.string().min(1)), // UUID preferred but string allowed for backward compatibility
     userId: z.string(),
     orgId: z.string().optional().default("personal"),
     prompt: z.string().min(1).max(5000),

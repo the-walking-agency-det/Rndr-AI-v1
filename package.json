@@ -29,6 +29,7 @@
   "dependencies": {
     "@genkit-ai/ai": "^1.26.0",
     "@genkit-ai/express": "^1.26.0",
+    "@google-cloud/video-transcoder": "^4.4.1",
     "@google/genai": "^1.30.0",
     "@google/generative-ai": "^0.24.1",
     "@googlemaps/react-wrapper": "^1.2.0",

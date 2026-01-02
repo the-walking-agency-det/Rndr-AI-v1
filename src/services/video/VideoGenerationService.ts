@@ -12,11 +12,13 @@ import { QuotaExceededError } from '@/shared/types/errors';
 export interface VideoJob {
     id: string;
     prompt: string;
-    status: 'queued' | 'processing' | 'completed' | 'failed';
+    status: 'queued' | 'processing' | 'stitching' | 'completed' | 'failed';
     videoUrl?: string;
     error?: string;
     createdAt: number;
     updatedAt?: number;
+    progress?: number;
+    stitchError?: string;
 }
 
 export interface VideoGenerationOptions {
@@ -154,10 +156,8 @@ export class VideoGenerationServiceImpl {
         firstFrame?: string;
         onProgress?: (current: number, total: number) => void;
     }): Promise<{ id: string, url: string, prompt: string }[]> {
-        const BLOCK_DURATION = 8; // seconds
+        const BLOCK_DURATION = 5; // seconds // Aligned with server-side Veo default
         const numBlocks = Math.ceil(options.totalDuration / BLOCK_DURATION);
-        const results: { id: string, url: string, prompt: string }[] = [];
-        let currentFirstFrame = options.firstFrame;
 
         // Pre-flight duration quota check
         const durationCheck = await MembershipService.checkVideoDurationQuota(options.totalDuration);
@@ -172,44 +172,40 @@ export class VideoGenerationServiceImpl {
             );
         }
 
+        const orgId = useStore.getState().currentOrganizationId || 'personal';
+        const jobId = uuidv4();
+        const prompts = Array(numBlocks).fill(null).map((_, i) => `${options.prompt} (Part ${i + 1}/${numBlocks})`);
+
         try {
-            for (let i = 0; i < numBlocks; i++) {
-                if (options.onProgress) {
-                    options.onProgress(i + 1, numBlocks);
-                }
+            // Use the new Server-Side Trigger
+            const triggerLongFormVideoJob = httpsCallable(functions, 'triggerLongFormVideoJob');
 
-                // Generate 8s block
-                const blockResults = await this.generateVideo({
-                    prompt: `${options.prompt} (Part ${i + 1}/${numBlocks})`,
-                    aspectRatio: options.aspectRatio,
-                    resolution: options.resolution,
-                    seed: options.seed ? options.seed + i : undefined,
-                    negativePrompt: options.negativePrompt,
-                    firstFrame: currentFirstFrame,
-                });
+            await triggerLongFormVideoJob({
+                jobId,
+                prompts,
+                orgId,
+                totalDuration: options.totalDuration,
+                startImage: options.firstFrame,
+                // Explicitly pass only safe options
+                aspectRatio: options.aspectRatio,
+                resolution: options.resolution,
+                seed: options.seed,
+                negativePrompt: options.negativePrompt
+            });
 
-                if (blockResults.length > 0) {
-                    const video = blockResults[0];
-                    results.push(video);
+             // Return a placeholder list - the UI should subscribe to the main jobId
+             // to get updates on segments and the final stitched video.
+             // We return one item representing the "Job"
+            return [{
+                id: jobId,
+                url: '',
+                prompt: options.prompt
+            }];
 
-                    // Extract last frame for next iteration
-                    try {
-                        const lastFrameData = await extractVideoFrame(video.url);
-                        currentFirstFrame = lastFrameData;
-                    } catch (err: unknown) {
-                        console.warn(`Failed to extract frame from video ${video.id}, breaking chain.`, err);
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
         } catch (e: unknown) {
             console.error("Long Form Generation Error:", e);
             throw e;
         }
-
-        return results;
     }
 
     async triggerVideoGeneration(options: VideoGenerationOptions & { orgId: string }): Promise<{ jobId: string }> {
@@ -248,7 +244,9 @@ export class VideoGenerationServiceImpl {
                     videoUrl: data.videoUrl,
                     error: data.error,
                     createdAt: data.createdAt?.toMillis() || Date.now(),
-                    updatedAt: data.updatedAt?.toMillis()
+                    updatedAt: data.updatedAt?.toMillis(),
+                    progress: data.progress,
+                    stitchError: data.stitchError
                 } as VideoJob);
             } else {
                 callback(null);

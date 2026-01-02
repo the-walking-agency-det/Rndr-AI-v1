@@ -4,7 +4,7 @@ import { useStore, HistoryItem } from '@/core/store';
 import { useVideoEditorStore } from './store/videoEditorStore';
 import { VideoGeneration } from '@/services/video/VideoGenerationService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Layout, Video, Sparkles, Maximize2, Settings } from 'lucide-react';
+import { Loader2, Layout, Video, Sparkles, Maximize2, Settings, Scissors } from 'lucide-react';
 import { ErrorBoundary } from '@/core/components/ErrorBoundary';
 
 // Components
@@ -37,7 +37,9 @@ export default function VideoWorkflow() {
         jobId,
         setJobId,
         status: jobStatus,
-        setStatus: setJobStatus
+        setStatus: setJobStatus,
+        progress,
+        setProgress
     } = useVideoEditorStore();
 
     const toast = useToast();
@@ -107,6 +109,11 @@ export default function VideoWorkflow() {
                             setJobStatus(newStatus);
                         }
 
+                        // Update Progress
+                        if (data?.progress) {
+                            setProgress(data.progress);
+                        }
+
                         if (newStatus === 'completed' && data.videoUrl) {
                             const newAsset = {
                                 id: jobId,
@@ -114,7 +121,7 @@ export default function VideoWorkflow() {
                                 prompt: data.prompt || localPromptRef.current,
                                 type: 'video' as const,
                                 timestamp: Date.now(),
-                                projectId: 'default',
+                                projectId: currentProjectId || 'default',
                                 orgId: currentOrganizationId
                             };
                             addToHistory(newAsset);
@@ -123,7 +130,7 @@ export default function VideoWorkflow() {
                             setJobId(null);
                             setJobStatus('idle');
                         } else if (newStatus === 'failed') {
-                            toast.error('Generation failed');
+                            toast.error(`Generation failed: ${data.error || data.stitchError || 'Unknown error'}`);
                             setJobId(null);
                             setJobStatus('failed');
                         }
@@ -135,7 +142,7 @@ export default function VideoWorkflow() {
         };
         setupListener();
         return () => { if (unsubscribe) unsubscribe(); };
-    }, [jobId, addToHistory, toast, setJobId, setJobStatus, currentOrganizationId]);
+    }, [jobId, addToHistory, toast, setJobId, setJobStatus, currentOrganizationId, currentProjectId, setProgress]);
 
     const handleGenerate = async () => {
         setJobStatus('queued');
@@ -145,23 +152,42 @@ export default function VideoWorkflow() {
         try {
             // Update global prompt before generating
             setPrompt(localPrompt);
+            setProgress(0);
 
-            const results = await VideoGeneration.generateVideo({
-                prompt: localPrompt,
-                resolution: studioControls.resolution,
-                aspectRatio: studioControls.aspectRatio,
-                negativePrompt: studioControls.negativePrompt,
-                seed: studioControls.seed ? parseInt(studioControls.seed) : undefined,
-                fps: studioControls.fps,
-                cameraMovement: studioControls.cameraMovement,
-                motionStrength: studioControls.motionStrength,
-                shotList: studioControls.shotList,
-                firstFrame: videoInputs.firstFrame?.url,
-                lastFrame: videoInputs.lastFrame?.url,
-                timeOffset: videoInputs.timeOffset,
-                ingredients: videoInputs.ingredients?.map(i => i.url),
-                orgId: currentOrganizationId
-            });
+            // Determine if this is a long-form request
+            // For now, if duration > 8s, we treat it as long form
+            const isLongForm = studioControls.duration && studioControls.duration > 8;
+
+            let results;
+            if (isLongForm) {
+                results = await VideoGeneration.generateLongFormVideo({
+                    prompt: localPrompt,
+                    totalDuration: studioControls.duration || 20,
+                    aspectRatio: studioControls.aspectRatio,
+                    resolution: studioControls.resolution,
+                    negativePrompt: studioControls.negativePrompt,
+                    seed: studioControls.seed ? parseInt(studioControls.seed) : undefined,
+                    firstFrame: videoInputs.firstFrame?.url,
+                    onProgress: (current, total) => setProgress(Math.round((current / total) * 100))
+                });
+            } else {
+                 results = await VideoGeneration.generateVideo({
+                    prompt: localPrompt,
+                    resolution: studioControls.resolution,
+                    aspectRatio: studioControls.aspectRatio,
+                    negativePrompt: studioControls.negativePrompt,
+                    seed: studioControls.seed ? parseInt(studioControls.seed) : undefined,
+                    fps: studioControls.fps,
+                    cameraMovement: studioControls.cameraMovement,
+                    motionStrength: studioControls.motionStrength,
+                    shotList: studioControls.shotList,
+                    firstFrame: videoInputs.firstFrame?.url,
+                    lastFrame: videoInputs.lastFrame?.url,
+                    timeOffset: videoInputs.timeOffset,
+                    ingredients: videoInputs.ingredients?.map(i => i.url),
+                    orgId: currentOrganizationId
+                });
+            }
 
             if (results && results.length > 0) {
                 const firstResult = results[0];
@@ -175,7 +201,7 @@ export default function VideoWorkflow() {
                             prompt: res.prompt,
                             type: 'video' as const,
                             timestamp: Date.now(),
-                            projectId: currentProjectId
+                            projectId: currentProjectId || 'default'
                         };
                         addToHistory(newAsset);
                         setActiveVideo(newAsset);
@@ -208,7 +234,7 @@ export default function VideoWorkflow() {
                         setPrompt(val); // Sync real-time
                     }}
                     onGenerate={handleGenerate}
-                    isGenerating={jobStatus === 'queued' || jobStatus === 'processing'}
+                    isGenerating={jobStatus === 'queued' || jobStatus === 'processing' || jobStatus === 'stitching'}
                 />
 
                 {/* Central Preview Stage */}
@@ -217,18 +243,40 @@ export default function VideoWorkflow() {
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
 
                     <div className="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10 group">
-                        {jobStatus === 'processing' || jobStatus === 'queued' ? (
+                        {jobStatus === 'processing' || jobStatus === 'queued' || jobStatus === 'stitching' ? (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
                                 <div className="w-24 h-24 relative mb-4">
-                                    <div className="absolute inset-0 rounded-full border-t-2 border-purple-500 animate-spin"></div>
+                                    {/* Different visual for stitching phase */}
+                                    {jobStatus === 'stitching' ? (
+                                         <div className="absolute inset-0 rounded-full border-t-2 border-green-500 animate-spin"></div>
+                                    ) : (
+                                         <div className="absolute inset-0 rounded-full border-t-2 border-purple-500 animate-spin"></div>
+                                    )}
+
                                     <div className="absolute inset-2 rounded-full border-r-2 border-indigo-500 animate-spin flex items-center justify-center">
-                                        <Sparkles size={24} className="text-purple-400 animate-pulse" />
+                                        {jobStatus === 'stitching' ? (
+                                            <Scissors size={24} className="text-green-400 animate-pulse" />
+                                        ) : (
+                                            <Sparkles size={24} className="text-purple-400 animate-pulse" />
+                                        )}
                                     </div>
                                 </div>
-                                <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600 animate-pulse">
-                                    Imaginating Scene...
+                                <h3 className={`text-xl font-bold bg-clip-text text-transparent animate-pulse ${jobStatus === 'stitching' ? 'bg-gradient-to-r from-green-400 to-blue-600' : 'bg-gradient-to-r from-purple-400 to-pink-600'}`}>
+                                    {jobStatus === 'stitching' ? 'Stitching Scenes...' : 'Imaginating Scene...'}
                                 </h3>
-                                <p className="text-gray-500 text-sm mt-2">AI Director is rendering your vision</p>
+
+                                {progress > 0 && (
+                                    <div className="w-64 mt-4 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out"
+                                            style={{ width: `${progress}%` }}
+                                        />
+                                    </div>
+                                )}
+
+                                <p className="text-gray-500 text-sm mt-2">
+                                    {jobStatus === 'stitching' ? 'Combining segments into final cut' : 'AI Director is rendering your vision'}
+                                </p>
                             </div>
                         ) : activeVideo ? (
                             <div className="relative w-full h-full flex items-center justify-center">
