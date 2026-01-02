@@ -2,7 +2,6 @@ import { AI } from '../ai/AIService';
 import { AI_MODELS, AI_CONFIG } from '@/core/config/ai-models';
 import { useStore, ShotItem } from '@/core/store';
 import { v4 as uuidv4 } from 'uuid';
-import { extractVideoFrame } from '@/utils/video';
 import { functions, db, auth } from '@/services/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { doc, onSnapshot, Unsubscribe } from 'firebase/firestore';
@@ -115,11 +114,10 @@ export class VideoGenerationServiceImpl {
         }
 
         // Temporal context analysis
-        let temporalContext = "";
         if (options.firstFrame || options.lastFrame) {
             const reference = options.firstFrame || options.lastFrame;
             if (reference) {
-                temporalContext = await this.analyzeTemporalContext(reference, options.timeOffset || 4, options.prompt);
+                await this.analyzeTemporalContext(reference, options.timeOffset || 4, options.prompt);
             }
         }
 
@@ -260,7 +258,7 @@ export class VideoGenerationServiceImpl {
      * One-off check for job status (polling alternative)
      */
     async getJobStatus(jobId: string): Promise<VideoJob | null> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const unsub = this.subscribeToJob(jobId, (job) => {
                 unsub();
                 resolve(job);

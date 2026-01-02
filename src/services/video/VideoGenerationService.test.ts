@@ -99,19 +99,19 @@ describe('VideoGenerationService', () => {
     });
 
     it('should throw error if user is not authenticated', async () => {
-       // @ts-ignore
+       // @ts-expect-error - forcing null to simulate logout
        auth.currentUser = null;
        await expect(VideoGenerationService.generateVideo({
          prompt: 'Test prompt',
        })).rejects.toThrow('must be signed in');
 
        // Restore auth
-       // @ts-ignore
+       // @ts-expect-error - forcing mock value
        auth.currentUser = { uid: 'test-user' };
     });
 
     it('should throw error if quota exceeded', async () => {
-      // @ts-ignore
+      // @ts-expect-error - mocking private method
       MembershipService.checkQuota.mockResolvedValueOnce({ allowed: false });
 
       await expect(VideoGenerationService.generateVideo({
