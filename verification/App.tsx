@@ -1,0 +1,1 @@
+import React from 'react'; import ReferenceImageManager from '../src/modules/dashboard/components/ReferenceImageManager'; export default function App() { return <div className='p-10 bg-black min-h-screen'><ReferenceImageManager /></div>; }

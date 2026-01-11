@@ -5,12 +5,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { BrandAsset } from '@/modules/workflow/types';
 import { StorageService } from '@/services/StorageService';
 import WebcamCapture from './WebcamCapture';
+import { moduleColors } from '@/core/theme/moduleColors';
 
 export default function ReferenceImageManager() {
     const { userProfile, updateBrandKit } = useStore();
     const [isUploading, setIsUploading] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Using brand theme since this is part of BrandKit
+    const theme = moduleColors.brand;
 
     const referenceImages = userProfile.brandKit?.referenceImages || [];
 
@@ -67,7 +71,7 @@ export default function ReferenceImageManager() {
     };
 
     return (
-        <div className="bg-black/30 backdrop-blur-xl border border-white/5 rounded-xl p-6 relative overflow-hidden group hover:border-white/10 transition-all">
+        <div className={`bg-black/30 backdrop-blur-xl border border-white/5 rounded-xl p-6 relative overflow-hidden group ${theme.border} transition-all`}>
             {/* Background pattern */}
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                 <ImageIcon size={120} />
@@ -75,8 +79,8 @@ export default function ReferenceImageManager() {
 
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 relative z-10 gap-4">
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-purple-500/10 rounded-lg">
-                        <Camera className="text-purple-400" size={24} />
+                    <div className={`p-2.5 ${theme.bg} rounded-lg`}>
+                        <Camera className={theme.text} size={24} />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-white tracking-tight">Reference Images</h2>
@@ -95,7 +99,7 @@ export default function ReferenceImageManager() {
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
-                        className="flex items-center gap-2 bg-white hover:bg-gray-100 text-black px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        className={`flex items-center gap-2 bg-white hover:bg-gray-100 text-black px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50`}
                     >
                         {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                         Upload
@@ -122,17 +126,22 @@ export default function ReferenceImageManager() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 relative z-10">
                 {referenceImages.map((img, idx) => (
-                    <div key={idx} className="group relative aspect-square bg-black/50 rounded-xl overflow-hidden border border-white/5 hover:border-blue-500/50 transition-all shadow-xl">
+                    <div key={idx} className={`group relative aspect-square bg-black/50 rounded-xl overflow-hidden border border-white/5 hover:border-${theme.text.replace('text-', '')} transition-all shadow-xl`}>
                         <img
                             src={img.url}
                             alt={img.description}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                        {/*
+                            ACCESSIBILITY FIX:
+                            Added group-focus-within:opacity-100 to ensure keyboard users can see actions when focusing the delete button.
+                        */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col justify-end p-3">
                             <div className="flex justify-between items-center gap-2">
                                 <span className="text-[10px] text-white font-medium truncate flex-1">{img.description}</span>
                                 <button
                                     onClick={() => handleDelete(idx)}
+                                    aria-label={`Delete image ${img.description}`}
                                     className="p-2.5 bg-red-500/80 hover:bg-red-500 text-white rounded-lg transition-colors shadow-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
                                 >
                                     <Trash2 size={16} />

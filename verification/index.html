@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Reference Image Manager Verification</title>
+    <script src='https://cdn.tailwindcss.com'></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              dept: {
+                brand: '#FFB300', // Amber
+              }
+            }
+          }
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id='root'></div>
+    <script type='module'>
+      import React from 'https://esm.sh/react@18.2.0';
+      import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+      import ReferenceImageManager from './App.js';
+
+      // Mocking deps since we can't easily import from src in this standalone setup without bundler
+      // We will need to bundle it or run within the existing app
+    </script>
+  </body>
+</html>
